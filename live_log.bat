@@ -1,3 +1,3 @@
 @echo off
-cd /d "F:\Games\StarCitizen\LIVE"
+cd /d "C:\Games\StarCitizen\LIVE"
 powershell -Command "Get-Content 'game.log' -Tail 0 -Wait | Select-String '\[Actor\]'"
