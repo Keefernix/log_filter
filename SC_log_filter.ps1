@@ -74,7 +74,7 @@ while ($line = $reader.ReadLine()) {
             if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") {
                 $logTime = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null)
                 $formattedLogDate = $logTime.ToString("MM/dd")
-                $formattedLogTime = $logTime.ToString("HH:mm:ss")
+                $formattedLogTime = $logTime.ToString("HH:mm")
             }
 
             # Trim '_01' and '_<digits>' from player, zone, weapon and damage type fields
