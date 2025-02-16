@@ -23,22 +23,36 @@ $filteredLines = @()
 $firstTimestamp = $null
 $lastTimestamp = $null
 
+# Eastern Time Zone Information
+$easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
+
 # First pass: Extract timestamps from all lines
 while ($line = $reader.ReadLine()) {
     if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") {
         $timestamp = $matches[1]
         if (-not $firstTimestamp) {
-            $firstTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null)
+            $firstTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
         }
-        $lastTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null)
+        $lastTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
     }
 }
 
 # Close the reader after first pass
 $reader.Close()
 
+# Convert to Eastern Time and round seconds to nearest 5-second interval
+function AdjustTime($utcDateTime) {
+    $easternDateTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcDateTime, $easternTimeZone)
+    $roundedSeconds = [math]::Round($easternDateTime.Second / 5) * 5
+    return $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
+}
+
 # Format the timestamps as mm-dd_hh-mm (replacing colons and "T" and "Z")
 if ($firstTimestamp -and $lastTimestamp) {
+    # Adjust timestamps
+    $firstTimestamp = AdjustTime $firstTimestamp
+    $lastTimestamp = AdjustTime $lastTimestamp
+
     # Extract and format the first timestamp as MM-dd_HH-mm
     $formattedFirstTimestamp = $firstTimestamp.ToString("MM-dd_HH-mm")
     # Extract and format the last timestamp as MM-dd_HH-mm
@@ -72,9 +86,10 @@ while ($line = $reader.ReadLine()) {
 
             # Format the timestamp to MM/dd - HH:mm
             if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") {
-                $logTime = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null)
-                $formattedLogDate = $logTime.ToString("MM/dd")
-                $formattedLogTime = $logTime.ToString("HH:mm")
+                $logTime = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
+                $adjustedLogTime = AdjustTime $logTime
+                $formattedLogDate = $adjustedLogTime.ToString("MM/dd")
+                $formattedLogTime = $adjustedLogTime.ToString("HH:mm:ss")
             }
 
             # Trim '_01' and '_<digits>' from player, zone, weapon and damage type fields
@@ -84,16 +99,16 @@ while ($line = $reader.ReadLine()) {
             $weaponUsed = $weaponUsed -replace "_\d{13}", "" -replace "_01", ""
             $damageType = $damageType -replace "_\d{13}", "" -replace "_01", ""
 
-	    # Generate unique ID based on a mixture of elements (timestamp, players, zone, weapon)
+            # Generate unique ID based on a mixture of elements (timestamp, players, zone, weapon)
             $uniqueID = "{0}_{1}_{2}_{3}_{4}" -f $formattedLogDate, $formattedLogTime, $playerKilled, $zone, $weaponUsed
 
             # Create a custom object to hold the data
             $csvData += [PSCustomObject]@{
-		id	       = $uniqueID
-                date           = $formattedLogDate
-                time           = $formattedLogTime
+                id              = $uniqueID
+                date            = $formattedLogDate
+                time            = $formattedLogTime
                 player_killed   = $playerKilled
-                zone           = $zone
+                zone            = $zone
                 player_killer   = $playerKiller
                 weapon_used     = $weaponUsed
                 damage_type     = $damageType
