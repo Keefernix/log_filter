@@ -88,7 +88,7 @@ while ($line = $reader.ReadLine()) {
             if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") {
                 $logTime = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
                 $adjustedLogTime = AdjustTime $logTime
-                $formattedLogDate = $adjustedLogTime.ToString("MM/dd")
+                $formattedLogDate = $adjustedLogTime.ToString("MM-dd")
                 $formattedLogTime = $adjustedLogTime.ToString("HH:mm:ss")
             }
 
