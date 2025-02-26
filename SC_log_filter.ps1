@@ -26,7 +26,7 @@ catch
 
 $firstTimestamp = $null
 $lastTimestamp = $null
-$version = "version_2"
+$version = "v2.1"
 
 # Eastern Time Zone Information
 $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
@@ -117,27 +117,34 @@ while ($line = $reader.ReadLine())
                 $weaponUsed = $matches[4]
                 $damageType = $matches[5]
             } 
-
-            # If we have a vehicle destruction event for this vehicle, credit the player who advanced the vehicle destruction level
-            if ($vehicleDestructionEvents.ContainsKey($vehicleId)) 
-            {
-                # Credit the player who advanced the vehicle to level 1
-                if ($damageType -eq "vehicle destruction") 
-                {
-                    $weaponUsed = $playerKiller
-                }
-                $playerKiller = $vehicleDestructionEvents[$vehicleId]
-                if ($damageType -eq "suicide") 
-                {
-                    $damageType = "Suicide (Shot Down)"
-                    $weaponUsed = "Despair"
-                }
-                if ($damageType -eq "crash")
-                {
-                    $damageType = "Crash (Shot Down)"
-                    $weaponUsed = "Gravity"
+        
+            # Check if the zone of the kill matches the vehicle destruction zone
+            $associatedPlayer = $vehicleDestructionEvents.GetEnumerator() | Where-Object { $_.Key -eq $zone }
+        
+            # If we have a vehicle destruction event for this vehicle
+            if ($associatedPlayer) {
+                # Ensure the player killer isn't the same as the player who caused the vehicle destruction level to progress
+                if ($associatedPlayer.Value -ne $playerKiller) {
+                    # Credit the player who advanced the vehicle to level 1, if the damage type matches vehicle destruction
+                    if ($damageType -eq "VehicleDestruction") {
+                        $weaponUsed = $playerKiller  # Credit the player who advanced the vehicle
+                    }
+                
+                    # Now, assign the credit to the correct player (who advanced the vehicle from level 0 to 1)
+                    $playerKiller = $associatedPlayer.Value  # Assign the correct player who gets the credit
+                    
+                    # Additional checks if damageType is "suicide" or "crash"
+                    if ($damageType -eq "suicide") {
+                        $damageType = "Suicide (Shot Down)"
+                        $weaponUsed = "Despair"
+                    }
+                    if ($damageType -eq "crash") {
+                        $damageType = "Crash (Shot Down)"
+                        $weaponUsed = "Gravity"
+                    }
                 }
             }
+        
 
             # Format the timestamp to MM/dd - HH:mm
             if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") 
