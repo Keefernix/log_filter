@@ -193,6 +193,8 @@ try
         } else {
             Write-Host "No valid logs found. No file created."
         }
+
+            & $MyInvocation.MyCommand.Path
     }
 } 
 catch 
