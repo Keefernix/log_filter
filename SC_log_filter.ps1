@@ -48,6 +48,7 @@ try
         function AdjustTime($utcDateTime) 
         {
             $easternDateTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcDateTime, $easternTimeZone)
+            $easternDateTime = $easternDateTime.ToString("MM/dd/yyyy")
             $roundedSeconds = [math]::Round($easternDateTime.Second / 5) * 5
             return $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
         }
