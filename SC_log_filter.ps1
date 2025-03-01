@@ -47,10 +47,23 @@ try
         # Convert to Eastern Time and round seconds to nearest 5-second interval
         function AdjustTime($utcDateTime) 
         {
+            # Ensure input is in UTC
+            if ($utcDateTime.Kind -ne [System.DateTimeKind]::Utc) {
+                $utcDateTime = [System.DateTime]::SpecifyKind($utcDateTime, [System.DateTimeKind]::Utc)
+            }
+        
+            # Convert the UTC time to Eastern Time Zone
+            $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
             $easternDateTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcDateTime, $easternTimeZone)
-            $easternDateTime = $easternDateTime.ToString("MM/dd/yyyy")
+        
+            # Round seconds to the nearest 5
             $roundedSeconds = [math]::Round($easternDateTime.Second / 5) * 5
-            return $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
+        
+            # Create a new DateTime with the adjusted seconds (but keep it as a DateTime, not string)
+            $adjustedDateTime = $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
+        
+            # Return the DateTime object (you can format it as needed later, but keep it in DateTime)
+            return $adjustedDateTime
         }
 
         # Format the timestamps as mm-dd_hh-mm (replacing colons and "T" and "Z")
