@@ -169,7 +169,7 @@ try
                     $zone = $zone -replace "_\d{13}", "" -replace "_01", ""
                     $weaponUsed = $weaponUsed -replace "_\d{13}", "" -replace "_01", ""
                     $damageType = $damageType -replace "_\d{13}", "" -replace "_01", ""
-
+                    $adjustedLogTime = $adjustedLogTime.ToString("MM/dd/yyyy h:mm:ss tt")
                     # Create a custom object to hold the data
                     $csvData += [PSCustomObject]@{
                         date_time        = $adjustedLogTime
