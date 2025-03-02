@@ -32,7 +32,7 @@ while ($true)
             # Initialize variables
             $firstTimestamp = $null
             $lastTimestamp = $null
-            $version = "v3.0"
+            $version = "v3.5"
 
             # Eastern Time Zone Information
             $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
@@ -110,18 +110,21 @@ while ($true)
             $csvData = @()
             while ($line = $reader.ReadLine()) 
             {
-                # Parse vehicle destruction level advance event
-                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel: Vehicle '([^']+)' \[.*?\] in zone '.*?' .*? driven by '([^']+)' \[.*?\] advanced from destroy level (\d) to (\d) caused by '([^']+)'")
+                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel:" -and $line -notmatch"_NPC_" -and $line -notmatch "NPC_Archetypes" -and $line -notmatch "_pet_" -and $line -notmatch "PU_Human" -and $line -notmatch "Kopion_" -and $line -notmatch "PU_Pilots-" -and $line -notmatch "AIModule_")
                 {
-                    $vehicleId = $matches[1]
-                    $fromLevel = [int]$matches[3]
-                    $toLevel = [int]$matches[4]
-                    $playerName = $matches[5]
-
-                    # If the vehicle advanced from level 0 to 1, store the player
-                    if ($fromLevel -eq 0 -and $toLevel -eq 1) 
+                    # Parse vehicle destruction level advance event
+                    if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel: Vehicle '([^']+)' \[.*?\] in zone '.*?' .*? driven by '([^']+)' \[.*?\] advanced from destroy level (\d) to (\d) caused by '([^']+)'")
                     {
-                        $vehicleDestructionEvents[$vehicleId] = $playerName
+                        $vehicleId = $matches[1]
+                        $fromLevel = [int]$matches[3]
+                        $toLevel = [int]$matches[4]
+                        $playerName = $matches[5]
+
+                        # If the vehicle advanced from level 0 to 1, store the player
+                        if ($fromLevel -eq 0 -and $toLevel -eq 1) 
+                        {
+                            $vehicleDestructionEvents[$vehicleId] = $playerName
+                        }
                     }
                 }
 
