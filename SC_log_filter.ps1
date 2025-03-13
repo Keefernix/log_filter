@@ -32,7 +32,7 @@ while ($true)
             # Initialize variables
             $firstTimestamp = $null
             $lastTimestamp = $null
-            $version = "v3.5"
+            $version = "v3.6"
 
             # Eastern Time Zone Information
             $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
@@ -211,7 +211,17 @@ while ($true)
             } 
             else 
             {
-                Write-Host "No valid logs found. No file created."
+                # Add a fake record to the CSV file so it's not empty
+                $csvData += [PSCustomObject]@{
+                    date_time        = "no kills found"
+                    player_killed   = "none"
+                    zone            = "none"
+                    player_killer   = "none"
+                    weapon_used     = "none"
+                    damage_type     = "none"
+                }
+                $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
+                Write-Host "No valid logs found. A blank CSV file has been created to log time played."
             }
         }
     } 
