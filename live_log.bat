@@ -1,3 +1,3 @@
 @echo off
-cd /d "C:\Games\StarCitizen\LIVE"
-powershell -Command "Get-Content 'game.log' -Tail 0 -Wait | Select-String '\[Actor\]'"
+cd /d "F:\Games\StarCitizen\LIVE"
+powershell -Command "Get-Content 'game.log' -Tail 0 -Wait | ? { $_ -match '\[Actor\]' -or $_ -match 'Entity \[RSI_' -or $_ -match 'Entity \[ANVL_' -or $_ -match 'Entity \[DRAK_' -or $_ -match 'Entity \[AEGS_' -or $_ -match 'Entity \[ARGO_' -or $_ -match 'Entity \[CRUS_'-or $_ -match 'Entity \[MRAI_' -or $_ -match 'Entity \[TMBL_' -or $_ -match 'Entity \[MISC_' -or $_ -match 'Entity \[ORIG_' -or $_ -match 'Entity \[ATLS_'}"

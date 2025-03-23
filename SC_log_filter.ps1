@@ -24,141 +24,78 @@ while ($true)
 
     try 
     {
-        # Process each log file
-        foreach ($filePath in $logFiles) {
-            # Open the log file for reading
+        foreach ($filePath in $logFiles) 
+        {
             $reader = [System.IO.StreamReader]::new($filePath)
-
-            # Initialize variables
+        
             $firstTimestamp = $null
             $lastTimestamp = $null
-            $version = "v3.6"
-
-            # Eastern Time Zone Information
+            $version = "v4.0"
             $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
+            $vehicleDestructionEvents = @{}
+            $csvData = @()
+            $entityData = @()
+            $csvDataNormalized = @()
+            $entityDataNormalized = @()
 
-            # First pass: Extract timestamps from all lines
-            while ($line = $reader.ReadLine()) 
-            {
-                if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") 
-                {
-                    $timestamp = $matches[1]
-                    if (-not $firstTimestamp) 
-                    {
-                        $firstTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
-                    }
-                    $lastTimestamp = [datetime]::ParseExact($timestamp, "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
-                }
-            }
-
-            # Close the reader after first pass
-            $reader.Close()
-
-            # Convert to Eastern Time and round seconds to nearest 5-second interval
             function AdjustTime($utcDateTime) 
             {
-                # Ensure input is in UTC
                 if ($utcDateTime.Kind -ne [System.DateTimeKind]::Utc) {
                     $utcDateTime = [System.DateTime]::SpecifyKind($utcDateTime, [System.DateTimeKind]::Utc)
                 }
-            
-                # Convert the UTC time to Eastern Time Zone
-                $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
                 $easternDateTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcDateTime, $easternTimeZone)
-            
-                # Round seconds to the nearest 5
                 $roundedSeconds = [math]::Round($easternDateTime.Second / 5) * 5
-            
-                # Create a new DateTime with the adjusted seconds (but keep it as a DateTime, not string)
-                $adjustedDateTime = $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
-            
-                # Return the DateTime object (you can format it as needed later, but keep it in DateTime)
-                return $adjustedDateTime
+                return $easternDateTime.AddSeconds($roundedSeconds - $easternDateTime.Second)
             }
-
-            # Format the timestamps as mm-dd_hh-mm (replacing colons and "T" and "Z")
-            if ($firstTimestamp -and $lastTimestamp) 
-            {
-                # Adjust timestamps
-                $firstTimestamp = AdjustTime $firstTimestamp
-                $lastTimestamp = AdjustTime $lastTimestamp
-
-                # Extract and format the first timestamp as MM-dd_HH-mm
-                $formattedFirstTimestamp = $firstTimestamp.ToString("MM-dd_HH-mm")
-                # Extract and format the last timestamp as MM-dd_HH-mm
-                $formattedLastTimestamp = $lastTimestamp.ToString("MM-dd_HH-mm")
-            } 
-            else 
-            {
-                Write-Host "No valid timestamps found in the log file."
-                exit
-            }
-
-            # Build the output file name using the first and last timestamps
-            $outputFileName = "${formattedFirstTimestamp}_to_${formattedLastTimestamp}_${version}.csv"
-
-            # Remove the previous output file, if it exists
-            Remove-Item $outputFileName -ErrorAction SilentlyContinue
-
-            # Reopen the file for filtering
-            $reader = [System.IO.StreamReader]::new($filePath)
-
-            # Store vehicle destruction events and the associated player (who brought the vehicle from 0-1)
-            $vehicleDestructionEvents = @{}
-
-            # Second pass: Filter lines and parse relevant data
-            $csvData = @()
+        
             while ($line = $reader.ReadLine()) 
             {
-                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel:" -and $line -notmatch"_NPC_" -and $line -notmatch "NPC_Archetypes" -and $line -notmatch "_pet_" -and $line -notmatch "PU_Human" -and $line -notmatch "Kopion_" -and $line -notmatch "PU_Pilots-" -and $line -notmatch "AIModule_")
+                # Extract timestamps on every relevant line
+                if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") 
                 {
-                    # Parse vehicle destruction level advance event
-                    if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel: Vehicle '([^']+)' \[.*?\] in zone '.*?' .*? driven by '([^']+)' \[.*?\] advanced from destroy level (\d) to (\d) caused by '([^']+)'")
+                    $timestamp = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
+                    if (-not $firstTimestamp) { $firstTimestamp = $timestamp }
+                    $lastTimestamp = $timestamp
+                }
+        
+                # Vehicle destruction detection
+                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel:" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_") 
+                {
+                    if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel: Vehicle '([^']+)' \[.*?\] in zone '.*?' .*? driven by '([^']+)' \[.*?\] advanced from destroy level (\d) to (\d) caused by '([^']+)'") 
                     {
                         $vehicleId = $matches[1]
                         $fromLevel = [int]$matches[3]
                         $toLevel = [int]$matches[4]
                         $playerName = $matches[5]
-
-                        # If the vehicle advanced from level 0 to 1, store the player
-                        if ($fromLevel -eq 0 -and $toLevel -eq 1) 
-                        {
+        
+                        if ($fromLevel -eq 0 -and $toLevel -eq 1) {
                             $vehicleDestructionEvents[$vehicleId] = $playerName
                         }
                     }
                 }
-
-                # Parse kill event
-                if ($line -match "<Actor Death>" -and $line -notmatch "_NPC_" -and $line -notmatch "NPC_Archetypes" -and $line -notmatch "_pet_" -and $line -notmatch "PU_Human" -and $line -notmatch "Kopion_" -and $line -notmatch "PU_Pilots-" -and $line -notmatch "AIModule_")
+                
+                # Kill event parsing
+                if ($line -match "<Actor Death>" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_") 
                 {
                     if ($line -match "<Actor Death> CActor::Kill: '([^']+)' \[\d+\] in zone '([^']+)' killed by '([^']+)' \[\d+\] using '([^']+)' \[Class.*?\] with damage type '([^']+)' ") 
                     {
-                        if ($matches.Count -gt 5) {
+                        if ($matches.Count -gt 5) 
+                        {
                             $playerKilled = $matches[1]
                             $zone = $matches[2]
                             $playerKiller = $matches[3]
                             $weaponUsed = $matches[4]
                             $damageType = $matches[5]
-                        } 
-                    
-                        # Check if the zone of the kill matches the vehicle destruction zone
+                        }
+        
                         $associatedPlayer = $vehicleDestructionEvents.GetEnumerator() | Where-Object { $_.Key -eq $zone }
-                    
-                        # If we have a vehicle destruction event for this vehicle
-                        if ($associatedPlayer) {
-                            # Ensure the player killer isn't the same as the player who caused the vehicle destruction level to progress
+        
+                        if ($associatedPlayer) 
+                        {
                             if ($associatedPlayer.Value -ne $playerKiller) 
                             {
-                                # Credit the player who advanced the vehicle to level 1, if the damage type matches vehicle destruction
-                                if ($damageType -eq "VehicleDestruction") 
-                                {
-                                    $weaponUsed = $playerKiller  # Credit the player who advanced the vehicle
-                                }
-                            
-                                # Now, assign the credit to the correct player (who advanced the vehicle from level 0 to 1)
-                                $playerKiller = $associatedPlayer.Value  # Assign the correct player who gets the credit
-
-                                # Additional checks if damageType is "suicide" or "crash"
+                                if ($damageType -eq "VehicleDestruction") { $weaponUsed = $playerKiller }
+                                $playerKiller = $associatedPlayer.Value
                                 if ($damageType -eq "suicide") 
                                 {
                                     $damageType = "Suicide (Shot Down)"
@@ -171,58 +108,118 @@ while ($true)
                                 }
                             }
                         }
-                    
-
-                        # Format the timestamp to MM/dd - HH:mm
-                        if ($line -match "<(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)>") 
-                        {
-                            $logTime = [datetime]::ParseExact($matches[1], "yyyy-MM-ddTHH:mm:ss.fffZ", $null).ToUniversalTime()
-                            $adjustedLogTime = AdjustTime $logTime
-                            #$formattedLogDate = $adjustedLogTime.ToString("MM-dd")
-                            #$formattedLogTime = $adjustedLogTime.ToString("HH:mm:ss")
-                        }
-
-                        # Trim '_01' and '_<digits>' from player, zone, weapon, and damage type fields
+        
+                        # Adjust and format the timestamp
+                        $adjustedLogTime = AdjustTime $timestamp
+                        $adjustedLogTime = $adjustedLogTime.ToString("MM/dd/yyyy h:mm:ss tt")
+        
+                        # Cleanup fields
                         $zone = $zone -replace "_\d{13}", "" -replace "_01", ""
                         $weaponUsed = $weaponUsed -replace "_\d{13}", "" -replace "_01", ""
                         $damageType = $damageType -replace "_\d{13}", "" -replace "_01", ""
-                        $adjustedLogTime = $adjustedLogTime.ToString("MM/dd/yyyy h:mm:ss tt")
-                        # Create a custom object to hold the data
+        
                         $csvData += [PSCustomObject]@{
-                            date_time        = $adjustedLogTime
-                            player_killed   = $playerKilled
-                            zone            = $zone
-                            player_killer   = $playerKiller
-                            weapon_used     = $weaponUsed
-                            damage_type     = $damageType
+                            date_time      = $adjustedLogTime
+                            player_killed  = $playerKilled
+                            zone           = $zone
+                            player_killer  = $playerKiller
+                            weapon_used    = $weaponUsed
+                            damage_type    = $damageType
                         }
                     }
                 }
-            }    
+                #ship log parsing
+                if ($line -cmatch '<\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z> \[Notice\] <CEntityComponentInstancedInterior::OnEntityEnterZone> .*? Entity \[((AEGS_|ANVL_|XIAN_|ARGO_|ATLS_|BANU_|CNOU_|CRUS_|DRAK_|ESPR_|GAMA_|GRIN_|KRIG_|MRAI_|MISC_|ORIG_|RSI_|TMBL_|VNCL_)[^\]]+)\] \[[^\]]+\].*? m_ownerGEID\[([^\]]+)\]\[\d+\]') 
+                {
+                    $entityName = $matches[1]
+                    $ownerGEID = $matches[3]
 
-            # Close the reader after filtering
-            $reader.Close()
+                    # Remove the trailing digits like "_2178824863638" or "_01"
+                    $entityName = $entityName -replace "_\d{13}$", "" -replace "_\d{10,}$", "" -replace "_\d{1,2}$", ""
 
-            # Export the parsed data to CSV
-            if ($csvData.Count -gt 0) 
-            {
-                $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
-                Write-Host "Filtered and parsed data has been saved to $outputFileName"
-            } 
-            else 
-            {
-                # Add a fake record to the CSV file so it's not empty
-                $csvData += [PSCustomObject]@{
-                    date_time        = "no kills found"
-                    player_killed   = "none"
-                    zone            = "none"
-                    player_killer   = "none"
-                    weapon_used     = "none"
-                    damage_type     = "none"
+                            # Save into a new object
+                    $entityData += [PSCustomObject]@{
+                        entity      = $entityName
+                        owner_geid  = $ownerGEID
+                    }
                 }
-                $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
-                Write-Host "No valid logs found. A blank CSV file has been created to log time played."
             }
+            $reader.Close()
+        
+            if ($firstTimestamp -and $lastTimestamp) 
+            {
+                $firstTimestamp = AdjustTime $firstTimestamp
+                $lastTimestamp = AdjustTime $lastTimestamp
+                $formattedFirstTimestamp = $firstTimestamp.ToString("MM-dd_HH-mm")
+                $formattedLastTimestamp = $lastTimestamp.ToString("MM-dd_HH-mm")
+                $outputFileName = "${formattedFirstTimestamp}_to_${formattedLastTimestamp}_${version}.csv"
+                Remove-Item $outputFileName -ErrorAction SilentlyContinue
+                # Export CSV here if needed
+            } else 
+            {
+                Write-Host "No valid timestamps found in the log file."
+                exit
+            }
+        }
+        
+
+        # Export the parsed data to CSV
+        if ($csvData.Count -gt 0 -or $entityData.Count -gt 0) 
+        {
+            # Normalize kills data
+            $csvDataNormalized = $csvData | ForEach-Object {
+                [PSCustomObject]@{
+                    type          = "kill"
+                    date_time     = $_.date_time
+                    player_killed = $_.player_killed
+                    zone          = $_.zone
+                    player_killer = $_.player_killer
+                    weapon_used   = $_.weapon_used
+                    damage_type   = $_.damage_type
+                    entity        = ""
+                    owner_geid    = ""
+                }
+            }
+
+            # Normalize entity data
+            $entityData = $entityData | Sort-Object entity, owner_geid -Unique
+            $entityData = $entityData | Where-Object { $_.owner_geid -ne "Unknown" }
+            $entityDataNormalized = $entityData | ForEach-Object {
+                [PSCustomObject]@{
+                    type          = "entity"
+                    date_time     = ""
+                    player_killed = ""
+                    zone          = ""
+                    player_killer = ""
+                    weapon_used   = ""
+                    damage_type   = ""
+                    entity        = $_.entity
+                    owner_geid    = $_.owner_geid
+                }
+            }
+
+            # Merge and export
+            $combinedData = @()
+            $combinedData += $csvDataNormalized
+            $combinedData += $entityDataNormalized
+            $combinedData | Export-Csv -NoTypeInformation -Path $outputFileName
+            Write-Host "Merged data saved to $outputFileName"
+        } 
+        else 
+        {
+            # Add a fake record to the CSV file so it's not empty
+            $csvData += [PSCustomObject]@{
+                date_time        = "no kills found"
+                player_killed   = "none"
+                zone            = "none"
+                player_killer   = "none"
+                weapon_used     = "none"
+                damage_type     = "none"
+                entity          = "none"
+                owner_geid      = "none"
+            }
+            $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
+            Write-Host "No valid logs found. A blank CSV file has been created to log time played."
         }
     } 
     catch 
