@@ -160,66 +160,65 @@ while ($true)
                 Write-Host "No valid timestamps found in the log file."
                 exit
             }
-        }
-        
 
-        # Export the parsed data to CSV
-        if ($csvData.Count -gt 0 -or $entityData.Count -gt 0) 
-        {
-            # Normalize kills data
-            $csvDataNormalized = $csvData | ForEach-Object {
-                [PSCustomObject]@{
-                    type          = "kill"
-                    date_time     = $_.date_time
-                    player_killed = $_.player_killed
-                    zone          = $_.zone
-                    player_killer = $_.player_killer
-                    weapon_used   = $_.weapon_used
-                    damage_type   = $_.damage_type
-                    entity        = ""
-                    owner_geid    = ""
+            # Export the parsed data to CSV
+            if ($csvData.Count -gt 0 -or $entityData.Count -gt 0) 
+            {
+                # Normalize kills data
+                $csvDataNormalized = $csvData | ForEach-Object {
+                    [PSCustomObject]@{
+                        type          = "kill"
+                        date_time     = $_.date_time
+                        player_killed = $_.player_killed
+                        zone          = $_.zone
+                        player_killer = $_.player_killer
+                        weapon_used   = $_.weapon_used
+                        damage_type   = $_.damage_type
+                        entity        = ""
+                        owner_geid    = ""
+                    }
                 }
-            }
 
-            # Normalize entity data
-            $entityData = $entityData | Sort-Object entity, owner_geid -Unique
-            $entityData = $entityData | Where-Object { $_.owner_geid -ne "Unknown" }
-            $entityDataNormalized = $entityData | ForEach-Object {
-                [PSCustomObject]@{
-                    type          = "entity"
-                    date_time     = ""
-                    player_killed = ""
-                    zone          = ""
-                    player_killer = ""
-                    weapon_used   = ""
-                    damage_type   = ""
-                    entity        = $_.entity
-                    owner_geid    = $_.owner_geid
+                # Normalize entity data
+                $entityData = $entityData | Sort-Object entity, owner_geid -Unique
+                $entityData = $entityData | Where-Object { $_.owner_geid -ne "Unknown" }
+                $entityDataNormalized = $entityData | ForEach-Object {
+                    [PSCustomObject]@{
+                        type          = "entity"
+                        date_time     = ""
+                        player_killed = ""
+                        zone          = ""
+                        player_killer = ""
+                        weapon_used   = ""
+                        damage_type   = ""
+                        entity        = $_.entity
+                        owner_geid    = $_.owner_geid
+                    }
                 }
-            }
 
-            # Merge and export
-            $combinedData = @()
-            $combinedData += $csvDataNormalized
-            $combinedData += $entityDataNormalized
-            $combinedData | Export-Csv -NoTypeInformation -Path $outputFileName
-            Write-Host "Merged data saved to $outputFileName"
-        } 
-        else 
-        {
-            # Add a fake record to the CSV file so it's not empty
-            $csvData += [PSCustomObject]@{
-                date_time        = "no kills found"
-                player_killed   = "none"
-                zone            = "none"
-                player_killer   = "none"
-                weapon_used     = "none"
-                damage_type     = "none"
-                entity          = "none"
-                owner_geid      = "none"
+                # Merge and export
+                $combinedData = @()
+                $combinedData += $csvDataNormalized
+                $combinedData += $entityDataNormalized
+                $combinedData | Export-Csv -NoTypeInformation -Path $outputFileName
+                Write-Host "Merged data saved to $outputFileName"
+            } 
+            else 
+            {
+                # Add a fake record to the CSV file so it's not empty
+                $csvData += [PSCustomObject]@{
+                    date_time        = "no kills found"
+                    player_killed   = "none"
+                    zone            = "none"
+                    player_killer   = "none"
+                    weapon_used     = "none"
+                    damage_type     = "none"
+                    entity          = "none"
+                    owner_geid      = "none"
+                }
+                $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
+                Write-Host "No valid logs found. A blank CSV file has been created to log time played."
             }
-            $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
-            Write-Host "No valid logs found. A blank CSV file has been created to log time played."
         }
     } 
     catch 
