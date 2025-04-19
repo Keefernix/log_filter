@@ -30,7 +30,7 @@ while ($true)
         
             $firstTimestamp = $null
             $lastTimestamp = $null
-            $version = "v4.0"
+            $version = "v4.1"
             $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
             $vehicleDestructionEvents = @{}
             $csvData = @()
@@ -128,21 +128,6 @@ while ($true)
                         }
                     }
                 }
-                #ship log parsing
-                if ($line -cmatch '<\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z> \[Notice\] <CEntityComponentInstancedInterior::OnEntityEnterZone> .*? Entity \[((AEGS_|ANVL_|XIAN_|ARGO_|ATLS_|BANU_|CNOU_|CRUS_|DRAK_|ESPR_|GAMA_|GRIN_|KRIG_|MRAI_|MISC_|ORIG_|RSI_|TMBL_|VNCL_)[^\]]+)\] \[[^\]]+\].*? m_ownerGEID\[([^\]]+)\]\[\d+\]') 
-                {
-                    $entityName = $matches[1]
-                    $ownerGEID = $matches[3]
-
-                    # Remove the trailing digits like "_2178824863638" or "_01"
-                    $entityName = $entityName -replace "_\d{13}$", "" -replace "_\d{10,}$", "" -replace "_\d{1,2}$", ""
-
-                            # Save into a new object
-                    $entityData += [PSCustomObject]@{
-                        entity      = $entityName
-                        owner_geid  = $ownerGEID
-                    }
-                }
             }
             $reader.Close()
         
@@ -174,8 +159,6 @@ while ($true)
                         player_killer = $_.player_killer
                         weapon_used   = $_.weapon_used
                         damage_type   = $_.damage_type
-                        entity        = ""
-                        owner_geid    = ""
                     }
                 }
 
@@ -191,8 +174,6 @@ while ($true)
                         player_killer = ""
                         weapon_used   = ""
                         damage_type   = ""
-                        entity        = $_.entity
-                        owner_geid    = $_.owner_geid
                     }
                 }
 
@@ -213,8 +194,6 @@ while ($true)
                     player_killer   = "none"
                     weapon_used     = "none"
                     damage_type     = "none"
-                    entity          = "none"
-                    owner_geid      = "none"
                 }
                 $csvData | Export-Csv -Path $outputFileName -NoTypeInformation
                 Write-Host "No valid logs found. A blank CSV file has been created to log time played."
