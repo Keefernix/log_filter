@@ -30,7 +30,7 @@ while ($true)
         
             $firstTimestamp = $null
             $lastTimestamp = $null
-            $version = "v4.1"
+            $version = "v4.20"
             $easternTimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
             $vehicleDestructionEvents = @{}
             $csvData = @()
@@ -59,7 +59,7 @@ while ($true)
                 }
         
                 # Vehicle destruction detection
-                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel:" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_") 
+                if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel:" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_|vlk_juvenile_") 
                 {
                     if ($line -match "<Vehicle Destruction> CVehicle::OnAdvanceDestroyLevel: Vehicle '([^']+)' \[.*?\] in zone '.*?' .*? driven by '([^']+)' \[.*?\] advanced from destroy level (\d) to (\d) caused by '([^']+)'") 
                     {
@@ -75,7 +75,7 @@ while ($true)
                 }
                 
                 # Kill event parsing
-                if ($line -match "<Actor Death>" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_") 
+                if ($line -match "<Actor Death>" -and $line -notmatch "_NPC_|NPC_Archetypes|_pet_|PU_Human|Kopion_|PU_Pilots-|AIModule_|vlk_juvenile_") 
                 {
                     if ($line -match "<Actor Death> CActor::Kill: '([^']+)' \[\d+\] in zone '([^']+)' killed by '([^']+)' \[\d+\] using '([^']+)' \[Class.*?\] with damage type '([^']+)' ") 
                     {
